@@ -1,0 +1,23 @@
+Package: carlosmarrero
+Type: Package
+Title: Tasks
+Version: 0.1
+Date: "2021-04-10"
+Authors@R: person("Carlos","Marrero",role = c("aut","cre"))
+Description: A (very) basic package.
+Imports: AnnotationDbi, annotate, affy, Biobase, combinat, DBI,
+        edgeR,genefilter, ggfortify, ggplot2, gridExtra, GSA,
+        GSEABase,GEOquery, hgu133plus2.db, limma, MASS,
+        matrixStats,methods, multtest, pacman, pbapply, qvalue,
+        ReportingTools, reshape2, samr, stats, SummarizedExperiment,
+        tamidata
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
+License: GPL-2
+LazyLoad: yes
+RoxygenNote: 7.1.1
+NeedsCompilation: no
+Packaged: 2021-04-10 21:11:19 UTC; carlos
+Author: Carlos Marrero [aut, cre]
+Maintainer: Carlos Marrero
+Depends: R (>= 3.5.0)
