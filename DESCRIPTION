@@ -1,8 +1,9 @@
-Package: carlosmarrero
+Encoding: UTF-8
+Package: caRlos
 Type: Package
 Title: Tasks
-Version: 0.1
-Date: "2021-04-10"
+Version: 0.2
+Date: "2021-05-05"
 Authors@R: person("Carlos","Marrero",role = c("aut","cre"))
 Description: A (very) basic package.
 Imports: AnnotationDbi, annotate, affy, Biobase, combinat, DBI,
@@ -10,14 +11,15 @@ Imports: AnnotationDbi, annotate, affy, Biobase, combinat, DBI,
         GSEABase,GEOquery, hgu133plus2.db, limma, MASS,
         matrixStats,methods, multtest, pacman, pbapply, qvalue,
         ReportingTools, reshape2, samr, stats, SummarizedExperiment,
-        tamidata
+        tamidata,org.Hs.eg.db,Rsamtools,GenomicFeatures,
+        GenomicAlignments
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 License: GPL-2
 LazyLoad: yes
 RoxygenNote: 7.1.1
 NeedsCompilation: no
-Packaged: 2021-04-10 21:11:19 UTC; carlos
+Packaged: 2021-05-05 15:50:00 UTC; carlos
 Author: Carlos Marrero [aut, cre]
 Maintainer: Carlos Marrero
 Depends: R (>= 3.5.0)

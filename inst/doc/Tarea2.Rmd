@@ -1,0 +1,148 @@
+---
+title: "PRJNA693328"
+author: "Carlos Marrero Pérez" 
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{PRJNA693328}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+
+---
+## Tarea 2
+### Elección del experimento
+
+- Se ha seleccionado el estudio **PRJNA693328**.
+
+- **Título**: Abundancia de las células T CD8+ sobrerrepresentada en infiltrados de tumores humanos.
+
+Varias formas de inmunoterapia consiguen restaurar las respuestas inmunitarias mediadas por células T, pero solo en algunos pacientes y tipos de cáncer. Se han tomado muestras CD8+ de diversos tumores (de pulmón y colorrectal). Se observa que esas diferencias de respuesta a inmunoterapia está mediada por la expresión de CD39, tipificado como CD39- (si no ocurre) y CD39+ (si existe). Las frecuencias de expresión de CD39 correlacionan con parámetros clínicos importantes, es decir, se puede utilizar mediciones de la expresión de CD39 como manera de cuantificar o aislar células T con efecto *bystander*, relacionadas con la exacerbación de síntomas. 
+
+```{r,echo=FALSE,results='hide'}
+doAll = FALSE
+```
+
+##  Con un bule en R descargamos todos los datos en formato .SRA
+
+```{eval=doAll}
+options(timeout=10000)
+for (i in 36:43) {
+  url = paste0("https://sra-downloadb.be-md.ncbi.nlm.nih.gov/sos2/sra-pub-run-13/SRR70591",i,"/SRR70591",i,".1")
+  download.file(url,destfile = paste0("../data/SRR70591",i,".fastq.gz"), downloadMethod="wget")
+} 
+setwd("../data")
+```
+
+## Descargamos el genoma para STAR
+
+```{bash,eval=doAll}
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_32/GRCh38.p13.genome.fa.gz
+gzip -d GRCh38.p13.genome.fa.gz
+```
+
+
+## Alineamiento con STAR
+Generamos el fichero de índices (aunque podríamos haber descargado la versión indexada directamente) con STAR. A continuación, alineamos con STAR, creamos los .bam con SAMtools y los ordenamos. A continuación, eliminamos todos los datos generados excepto los .bam ordenados.
+
+
+```{bash,eval=doAll}
+STAR --runMode genomeGenerate --runThreadN 6 --genomeDir genomeDir0 --genomeFastaFiles GRCh38.p13.genome.fa
+for variable in {36..43}; do fastq-dump -I --split-files SRR70591$variable.sra; done
+let variable2=37
+for variable in {36..43};do STAR --genomeDir ./ --runThreadN 14 starIndex --readFilesIn SRR70591${variable}_1.fastq SRR70591${variable}_2.fastq --outFileNamePrefix paired${variable}; done
+for variable in {36..43}; do samtools view -S -b paired${variable}Aligned.out.sam > paired${variable}Aligned.bam;done
+for variable in {36..43}; do samtools sort paired${variable}Aligned.bam -o paired${variable}Aligned_sort.bam; done
+
+#Eliminamos todo lo que no sean nuestros .bam ordenados
+rm *.sam *.fastq SAindex SA *.txt *.out *.tab *.fa datalist
+
+```
+##  Creamos la lista de .bam y descarga del .gtf
+
+```{bash,eval=doAll}
+#Lista de los ficheros .bam
+ls *.bam > bamfiles.txt
+
+# El fichero de anotación
+wget ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_37/gencode.v37.annotation.gtf.gz
+gzip -d gencode.v37.annotation.gtf.gz
+rm *.gz
+```
+
+
+### Usando Rsamtools para el conteo de las reads alineadas
+
+```{r,eval=doAll}
+library(Rsamtools)
+library(GenomicFeatures)
+library(GenomicAlignments)
+sampleTable = read.table("bamfiles.txt")
+dirActualData =  paste(getwd(),"/",sep="")
+fls = paste(dirActualData,sampleTable[,1],sep="")
+bamLst = BamFileList(fls, index=character(),yieldSize=100000,obeyQname=TRUE)
+gtfFile = "gencode.v37.annotation.gtf"
+txdb = makeTxDbFromGFF(gtfFile, format="gtf")
+genes = exonsBy(txdb, by="gene")
+
+PRJNA693328 = summarizeOverlaps(features = genes, read=bamLst,
+                                mode="Union",
+                                singleEnd=FALSE, ## Son lecturas apareadas
+                                ignore.strand=TRUE,
+                                fragments=FALSE)
+```
+
+### Metadatos
+
+```{r, eval=doAll}
+SampleName = c("SAMN08975667", "SAMN08975666", "SAMN08975665", "SAMN08975664","SAMN08975663","SAMN08975662", "SAMN08975661", "SAMN08975660")
+Run = c("SRR7059136", "SRR7059137", "SRR7059138", "SRR7059139", "SRR7059140", "SRR7059141", "SRR7059142", "SRR7059143")
+
+CD8_Status= c(0,1,0,1,0,1,0,1)
+CD8_Status = factor(CD8_Status,levels=0:1,labels=c("CD39-", "CD39+"))
+colData(PRJNA693328) = DataFrame(SampleName, Run, CD8_Status)
+colData(PRJNA693328)
+```
+### Metadatos experimentales
+
+```{r, eval=doAll}
+metadata(PRJNA693328)=list("Experimenter name"="Kaibo Duan",
+                           "Contact"="duan_kaibo@immunol.a-star.edu.sg",
+                           "Organization"="Singapore Immunology Network",
+                           "Title"="Bystander CD8 + T cells are abundant and phenotypically distinct in human tumour infiltrates",
+                           "URL"="https://pubmed.ncbi.nlm.nih.gov/29769722/", 
+                           "Abstract"= "Various forms of immunotherapy, such as checkpoint blockade immunotherapy, are proving to be effective at restoring T cell-mediated immune responses that can lead to marked and sustained clinical responses, but only in some patients and cancer types. Patients and tumours may respond unpredictably to immunotherapy partly owing to heterogeneity of the immune composition and phenotypic profiles of tumour-infiltrating lymphocytes (TILs) within individual tumours and between patients5,6. Although there is evidence that tumour-mutation-derived neoantigen-specific T cells play a role in tumour control, in most cases the antigen specificities of phenotypically diverse tumour-infiltrating T cells are largely unknown. Here we show that human lung and colorectal cancer CD8+ TILs can not only be specific for tumour antigens (for example, neoantigens), but also recognize a wide range of epitopes unrelated to cancer (such as those from Epstein-Barr virus, human cytomegalovirus or influenza virus). We found that these bystander CD8+ TILs have diverse phenotypes that overlap with tumour-specific cells, but lack CD39 expression. In colorectal and lung tumours, the absence of CD39 in CD8+ TILs defines populations that lack hallmarks of chronic antigen stimulation at the tumour site, supporting their classification as bystanders. Expression of CD39 varied markedly between patients, with some patients having predominantly CD39- CD8+ TILs. Furthermore, frequencies of CD39 expression among CD8+ TILs correlated with several important clinical parameters, such as the mutation status of lung tumour epidermal growth factor receptors. Our results demonstrate that not all tumour-infiltrating T cells are specific for tumour antigens, and suggest that measuring CD39 expression could be a straightforward way to quantify or isolate bystander T cells.")
+```
+## Anotación del experimento
+Tenemos que eliminar las subversiones de los genes (el número después del punto del nombre en Ensembl de cada gen).
+```{r,eval=doAll}
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+
+# No funciona sin quitar lo que va después del punto nuestra tabla original
+tmp=gsub("\\..*","",row.names(PRJNA693328))
+row.names(PRJNA693328)=tmp
+
+a = AnnotationDbi::select(org.Hs.eg.db,keys=rownames(PRJNA693328),columns=c("GENENAME","ENTREZID","ENSEMBL","SYMBOL"),keytype="ENSEMBL")
+b = match(rownames(PRJNA693328),a[,"ENSEMBL"])
+rowData(PRJNA693328) = a[b,]
+rowData(PRJNA693328)
+PRJNA693328 = PRJNA693328[which(!is.na(rowData(PRJNA693328)[,"ENSEMBL"])),]
+PRJNA693328
+sel = match(unique(rowData(PRJNA693328)[,"ENSEMBL"]),rowData(PRJNA693328)[,"ENSEMBL"])
+PRJNA693328 = PRJNA693328[sel,]
+#Eliminamos los genes que no tienen ninguna lectura alineada.
+#Podríamos utilizar criterios más restrictivos en posteriores pasos del análisis.
+nullsum = apply(assay(PRJNA693328),1,sum)==0
+nullsum
+PRJNA693328 = PRJNA693328[!nullsum,]
+```
+## Limpieza final
+```{bash,eval=doAll}
+rm Genome *.gtf *.bam
+```
+
+## Guardamos el dataset
+```{r,eval=doAll}
+save(PRJNA693328,file="PRJNA693328.rda")
+```
+
